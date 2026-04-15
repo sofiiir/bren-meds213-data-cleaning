@@ -1,0 +1,73 @@
+---
+title: "eds213_data_cleaning_assign_SOFIARODAS"
+format: html
+author: Sofia Rodas
+---
+# Data Cleaning
+
+Load libraries and data.
+```{r}
+#| message: false  
+
+# load libraries
+library(tidyverse)
+
+# create a file path
+datadir_raw <- file.path("data","raw")
+datadir_processed <- file.path("data", "processed/")
+
+# create variables with file names
+species_file <- "ASDN_Daily_species.csv"
+snowsurvey_file <- "ASDN_Snow_survey.csv"
+
+# import the files
+snowsurvey_csv <- read_csv(file.path(datadir_raw, snowsurvey_file))
+```
+
+#### View the dataframe
+Before beginning to change any data types let's inspect the data frame.
+```{r}
+spec(snowsurvey_csv)
+```
+Only year is currently numeric. The remainder of the columns are characters.
+
+
+## 1. Clean the Water_cover column to transform it into the correct data type and respect expectations for a percentage
+
+Let's inspect the `Water_cover` column more closely.
+```{r}
+# look at all of the unique values stored in the water_cover column
+unique(snowsurvey_csv$Water_cover)
+```
+There are many ways that `NA` is conveyed in this data frame (unk, n/a, ., -). We need to make them all `NA`.
+```{r}
+snowsurvey_fixed <- snowsurvey_csv |> 
+  mutate(Water_cover = ifelse(Water_cover == ".", NA, Water_cover)) |> 
+  mutate(Water_cover = ifelse(Water_cover == "-", NA, Water_cover)) |> 
+  mutate(Water_cover = ifelse(Water_cover == "unk", NA, Water_cover)) |> 
+  mutate(Water_cover = ifelse(Water_cover == "n/a", NA, Water_cover))
+```
+
+Let's make sure that no more non-numeric values are found in this column. 
+```{r}
+snowsurvey_fixed  |> 
+  count(Water_cover) |> 
+  filter(is.na(as.numeric(Water_cover)))
+```
+Amazing! All of our data is NA when it's not numeric. 
+
+### Mutate `Water_cover` to be numeric
+
+Now that we've handled all of the data that is non-numeric in the `Water_cover` column we can change the column type to numeric. 
+
+```{r}
+snowsurvey_fixed <- snowsurvey_fixed |> 
+  mutate(Water_cover = as.numeric(Water_cover))
+```
+
+
+
+
+### 2. Clean the Land_cover column to transform it into the correct data type and respect expectations for a percentage
+
+### 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the Total_cover column as needed
