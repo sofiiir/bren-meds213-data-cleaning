@@ -4,7 +4,7 @@ format: html
 author: Sofia Rodas
 ---
 # Data Cleaning 
-## Cleaning the cover columns
+## Cleaning the cover columns from the Arctic Data Center data
 
 Load libraries and data.
 ```{r}
