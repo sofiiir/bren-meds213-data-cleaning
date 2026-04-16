@@ -3,7 +3,8 @@ title: "eds213_data_cleaning_assign_SOFIARODAS"
 format: html
 author: Sofia Rodas
 ---
-# Data Cleaning
+# Data Cleaning 
+## Cleaning the cover columns
 
 Load libraries and data.
 ```{r}
@@ -30,7 +31,7 @@ spec(snowsurvey_csv)
 Only `Year` and `Snow_cover` are currently numeric. The remainder of the columns are characters.
 
 
-## 1. Clean the `Water_cover` column to transform it into the correct data type and respect expectations for a percentage
+## 1. Clean the `Water_cover` column to transform it into the correct data type and respect expectations for a percentage.
 
 Let's inspect the `Water_cover` column more closely.
 ```{r}
@@ -51,6 +52,7 @@ snowsurvey_fixed <- snowsurvey_csv |>
 
 Let's make sure that no more non-numeric values other than NA are found in this column. 
 ```{r}
+# view all non-numeric values
 snowsurvey_fixed  |> 
   count(Water_cover) |> 
   filter(is.na(as.numeric(Water_cover)))
@@ -59,26 +61,27 @@ Amazing! All of our data is NA when it's not numeric.
 
 ### Mutate `Water_cover` to be numeric
 
-Now that we've handled all of the data that is non-numeric in the `Water_cover` column we can change the column type to numeric. 
+Now that we've handled all of the data that is non-numeric in the `Water_cover` column, we can change the column type to numeric. 
 
 ```{r}
+# set water_cover to numeric
 snowsurvey_fixed <- snowsurvey_fixed |> 
   mutate(Water_cover = as.numeric(Water_cover))
 ```
 
 Now let's make sure that all of the values are less than or equal to 100 since these values should represent a percentage.
 
-First we'll filter for any values that are greater than 100.
 ```{r}
+# view which columns have values outside of 0 to 100
 snowsurvey_fixed |> 
   filter(Water_cover > 100 | Water_cover < 0)
 ```
 
-Only one value is less than 0 or greater than 100. Since the value for `Water_cover` is so much larger than 100 and `Land_cover` is negative this row of observations is unusable. For this reason we'll just drop this row. 
-
+Only one value is less than 0 or greater than 100. Since the value for `Water_cover` is so much larger than 100 and `Land_cover` is negative this row of observations is unusable. For this reason we'll drop this row. 
 
 ### Drop the row with unusable values
 ```{r}
+# keep any rows where water cover is between 0 and 100 as well as NAs
 snowsurvey_fixed <- snowsurvey_fixed |> 
   filter(Water_cover <= 100 & Water_cover >= 0 | is.na(Water_cover))
 ```
@@ -86,21 +89,21 @@ snowsurvey_fixed <- snowsurvey_fixed |>
 Let's double check that worked.
 
 ```{r}
+# view if columns have values outside of 0 to 100
 snowsurvey_fixed |> 
   filter(Water_cover > 100 | Water_cover < 0)
 ```
 
 Yay! The `Water_cover` column is clean. 
 
-### 2. Clean the Land_cover column to transform it into the correct data type and respect expectations for a percentage
+## 2. Clean the `Land_cover` column to transform it into the correct data type and respect expectations for a percentage
 
 Let's inspect the `Land_cover` column more closely.
 ```{r}
-# look at all of the unique values stored in the water_cover column
+# look at all of the unique values stored in the land_cover column
 unique(snowsurvey_fixed$Land_cover)
 ```
 Again, there are many non-numeric entries in this data frame (unk, n/a, ., -). We need to make them all `NA`.
-
 ```{r}
 # convert any non-numeric entries to NA 
 snowsurvey_fixed <- snowsurvey_fixed |> 
@@ -112,6 +115,7 @@ snowsurvey_fixed <- snowsurvey_fixed |>
 
 Let's make sure that no more non-numeric values other than NA are found in the `Land_cover` column. 
 ```{r}
+# view all non-numeric values
 snowsurvey_fixed  |> 
   count(Land_cover) |> 
   filter(is.na(as.numeric(Land_cover)))
@@ -123,41 +127,46 @@ Great! All of the `NA`'s are standardized.
 Now that we've handled all of the data that is non-numeric in the `Land_cover` column we can change the column type to numeric. 
 
 ```{r}
+# change the class of land cover to numeric 
 snowsurvey_fixed <- snowsurvey_fixed |> 
   mutate(Land_cover = as.numeric(Land_cover))
 ```
 
-Finally, let's make sure the assumptions of percentages aren't violated. We'll make sure that the values don't exceed 100.
+Finally, let's make sure the assumptions of percentages aren't violated. We'll make sure that the values aren't below zero and don't exceed 100.
 
 ```{r}
+# view data that is outside of the 0 to 100 range
 snowsurvey_fixed |> 
   filter(Land_cover > 100 | Land_cover < 0)
 ```
 
-We have one row that has a value below zero. It's negative 100. Since `Snow_cover` has a value of 200 for this row, the best thing to do is drop the row. If only `Land_cover` had a value, then we would assume that there was a typo and that the value should simply be 100 instead of -100. 
+We have one row that has a value below zero. It's negative 100. Since `Snow_cover` has a value of 200 for this row, the best thing to do is drop the row. If only `Land_cover` had a value other than 0, then we would assume that there was a typo and that the value should simply be 100 instead of -100. 
 
 ```{r}
+# filter out any rows that have values outside of 0 to 100 or NA
 snowsurvey_fixed <- snowsurvey_fixed |> 
   filter(Land_cover <= 100 & Land_cover >= 0 | is.na(Land_cover))
 ```
 
 Let's double check that there are no more rows with a value less than zero or greater than 100.
 ```{r}
+# verify no more rows are outside of 0 to 100
 snowsurvey_fixed |> 
   filter(Land_cover > 100 | Land_cover < 0)
 ```
 
-Finally, before using these rows for computations lets make sure they're all in the format we need.
+Finally, before using these rows for computations, let's make sure they're all in the format we need.
 
 ```{r}
+# view dataframe attributes
 glimpse(snowsurvey_fixed)
 ```
 All of the data for cover is numeric except for the `Total_cover` which we'll overwrite. 
 
-### 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the `Total_cover` column as needed.
+## 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the `Total_cover` column as needed.
 
 ```{r}
-# Add snow, water, and land cover to calculate total cover
+# add snow, water, and land cover to calculate total cover
 snowsurvey_fixed <- snowsurvey_fixed |> 
   rowwise() |> 
   mutate(Total_cover = sum(Snow_cover, Water_cover, Land_cover, na.rm = TRUE))
@@ -172,16 +181,37 @@ class(snowsurvey_fixed$Total_cover)
 
 Let's look at any values that are not equal to 100.
 ```{r}
-# save the values outside of the percentage range to 
+# save the values outside of the percentage range 
 false_values <- snowsurvey_fixed |> 
   filter(Total_cover != 100)
 
+# view the differnt values outside of the percentage range
 unique(false_values$Total_cover)
 ```
 
+Though in an ideal world we would salvage some of the data that is outside of the percentage range, we don't want to change the values and fabricate the information. It would take a lot of deliberation to decide what `cover` category the added or subtracted values should stem from to make the `Total_cover` equal to 100. As someone less familiar with this project, the safest route is to omit any data that does not follow the specifications of the metadata. Let's drop the rows where `Total_cover` is not equal to one-hundred as they're unusable. 
+
 ```{r}
-false_values |> 
-  filter(Total_cover <= 110 & Total_cover >= 90)
+# drop any rows where total_cover is not equal to 100
+snowsurvey_fixed <- snowsurvey_fixed |> 
+  filter(Total_cover == 100)
 ```
 
-There are 637 observations that are between 90 and 110. These could all just be errors inputting. Since the data is collected in the Arctic 
+Save the final file to a CSV for future use.
+```{r}
+# write final clean file
+write_csv(snowsurvey_fixed, file.path(datadir_processed, "all_cover_fixed_SOFIARODAS.csv"))
+```
+
+## Double check our new file is what we expect
+```{r}
+# read in the new file
+clean <- read_csv(here::here("data", "processed", "all_cover_fixed_SOFIARODAS.csv"))
+```
+
+```{r}
+# look at the column types
+spec(clean)
+```
+
+All of the cover columns that should be numeric are numeric. 
