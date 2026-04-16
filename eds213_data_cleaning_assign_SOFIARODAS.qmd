@@ -37,8 +37,11 @@ Let's inspect the `Water_cover` column more closely.
 # look at all of the unique values stored in the water_cover column
 unique(snowsurvey_csv$Water_cover)
 ```
-There are many ways that `NA` is conveyed in this data frame (unk, n/a, ., -). We need to make them all `NA`.
+There are many non-numeric entries in this data frame (unk, n/a, ., -). We need to make them all `NA`.
+
+
 ```{r}
+# change all non-numeric entries to NA
 snowsurvey_fixed <- snowsurvey_csv |> 
   mutate(Water_cover = ifelse(Water_cover == ".", NA, Water_cover)) |> 
   mutate(Water_cover = ifelse(Water_cover == "-", NA, Water_cover)) |> 
@@ -46,7 +49,7 @@ snowsurvey_fixed <- snowsurvey_csv |>
   mutate(Water_cover = ifelse(Water_cover == "n/a", NA, Water_cover))
 ```
 
-Let's make sure that no more non-numeric values are found in this column. 
+Let's make sure that no more non-numeric values other than NA are found in this column. 
 ```{r}
 snowsurvey_fixed  |> 
   count(Water_cover) |> 
@@ -68,32 +71,25 @@ Now let's make sure that all of the values are less than or equal to 100 since t
 First we'll filter for any values that are greater than 100.
 ```{r}
 snowsurvey_fixed |> 
-  filter(Water_cover > 100)
+  filter(Water_cover > 100 | Water_cover < 0)
 ```
 
-Only one value is greater than 100. Since the value for `Water_cover` is so much larger than 100 and `Land_cover` is negative this row of observations is unusable. For this reason we'll just drop this row. 
+Only one value is less than 0 or greater than 100. Since the value for `Water_cover` is so much larger than 100 and `Land_cover` is negative this row of observations is unusable. For this reason we'll just drop this row. 
 
 
 ### Drop the row with unusable values
 ```{r}
 snowsurvey_fixed <- snowsurvey_fixed |> 
-  filter(Water_cover <= 100)
+  filter(Water_cover <= 100 & Water_cover >= 0 | is.na(Water_cover))
 ```
 
 Let's double check that worked.
 
 ```{r}
 snowsurvey_fixed |> 
-  filter(Water_cover > 100)
+  filter(Water_cover > 100 | Water_cover < 0)
 ```
 
-There's no more rows that have a value greater than 100 for the `Water_cover` column.
-
-We'll double check that there aren't any rows that are less than 0.
-```{r}
-snowsurvey_fixed |> 
-  filter(Water_cover < 0)
-```
 Yay! The `Water_cover` column is clean. 
 
 ### 2. Clean the Land_cover column to transform it into the correct data type and respect expectations for a percentage
@@ -103,9 +99,10 @@ Let's inspect the `Land_cover` column more closely.
 # look at all of the unique values stored in the water_cover column
 unique(snowsurvey_fixed$Land_cover)
 ```
-Again, there are many ways that `NA` is conveyed in this data frame (unk, n/a, ., -). We need to make them all `NA`. 
+Again, there are many non-numeric entries in this data frame (unk, n/a, ., -). We need to make them all `NA`.
 
 ```{r}
+# convert any non-numeric entries to NA 
 snowsurvey_fixed <- snowsurvey_fixed |> 
   mutate(Land_cover = ifelse(Land_cover == ".", NA, Land_cover)) |> 
   mutate(Land_cover = ifelse(Land_cover == "-", NA, Land_cover)) |> 
@@ -113,7 +110,7 @@ snowsurvey_fixed <- snowsurvey_fixed |>
   mutate(Land_cover = ifelse(Land_cover == "n/a", NA, Land_cover))
 ```
 
-Let's make sure that no more non-numeric values are found in the `Land_cover` column. 
+Let's make sure that no more non-numeric values other than NA are found in the `Land_cover` column. 
 ```{r}
 snowsurvey_fixed  |> 
   count(Land_cover) |> 
@@ -123,7 +120,7 @@ Great! All of the `NA`'s are standardized.
 
 ### Mutate `Land_cover` to be numeric
 
-Now that we've handled all of the data that is non-numeric in the `Water_cover` column we can change the column type to numeric. 
+Now that we've handled all of the data that is non-numeric in the `Land_cover` column we can change the column type to numeric. 
 
 ```{r}
 snowsurvey_fixed <- snowsurvey_fixed |> 
@@ -134,26 +131,30 @@ Finally, let's make sure the assumptions of percentages aren't violated. We'll m
 
 ```{r}
 snowsurvey_fixed |> 
-  filter(Land_cover > 100)
+  filter(Land_cover > 100 | Land_cover < 0)
 ```
 
-We'll also make sure that none of the values are less than 0.
-
-```{r}
-snowsurvey_fixed |> 
-  filter(Land_cover < 0)
-```
-
-We have one row that has a value below zero. It's negative 100. Since `Snow_cover` is input as 200 for this row, the best thing to do is drop the row. If only `Land_cover` had a value, then we would assume that there was a typo and that the value should simply be 100 instead of -100. 
+We have one row that has a value below zero. It's negative 100. Since `Snow_cover` has a value of 200 for this row, the best thing to do is drop the row. If only `Land_cover` had a value, then we would assume that there was a typo and that the value should simply be 100 instead of -100. 
 
 ```{r}
 snowsurvey_fixed <- snowsurvey_fixed |> 
-  filter(Land_cover > 0)
+  filter(Land_cover <= 100 & Land_cover >= 0 | is.na(Land_cover))
 ```
 
+Let's double check that there are no more rows with a value less than zero or greater than 100.
+```{r}
+snowsurvey_fixed |> 
+  filter(Land_cover > 100 | Land_cover < 0)
+```
 
+Finally, before using these rows for computations lets make sure they're all in the format we need.
 
-### 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the Total_cover column as needed.
+```{r}
+glimpse(snowsurvey_fixed)
+```
+All of the data for cover is numeric except for the `Total_cover` which we'll overwrite. 
+
+### 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the `Total_cover` column as needed.
 
 ```{r}
 # Add snow, water, and land cover to calculate total cover
@@ -162,16 +163,25 @@ snowsurvey_fixed <- snowsurvey_fixed |>
   mutate(Total_cover = sum(Snow_cover, Water_cover, Land_cover, na.rm = TRUE))
 ```
 
-Let's look at any values that are greater than 100.
+We also want to make sure that the `Total_cover` column is converted to numeric.
 ```{r}
-snowsurvey_fixed |> 
-  filter(Total_cover > 100)
+# check the data type of the total_cover column
+class(snowsurvey_fixed$Total_cover)
 ```
 
-All of these values seem in the range of 100. The researchers working in the Arctic are likely in some extreme conditions, which might effect data entry at times. Let's scale the values of the cover types so that we can keep this information. 
 
+Let's look at any values that are not equal to 100.
 ```{r}
-snowsurvey_fixed |> 
-  mutate(Total_cover = ifelse(Total_cover > 100, ))
+# save the values outside of the percentage range to 
+false_values <- snowsurvey_fixed |> 
+  filter(Total_cover != 100)
+
+unique(false_values$Total_cover)
 ```
 
+```{r}
+false_values |> 
+  filter(Total_cover <= 110 & Total_cover >= 90)
+```
+
+There are 637 observations that are between 90 and 110. These could all just be errors inputting. Since the data is collected in the Arctic 
